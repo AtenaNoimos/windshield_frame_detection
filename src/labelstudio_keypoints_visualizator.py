@@ -15,9 +15,7 @@ def plot_labelstudio_keypoints(json_file_path, read_img_dir, write_img_dir):
         img_points ={}
         img_name = image["data"]['img'].split("/")[-1].split("-", maxsplit=1)[-1]
         image_path = os.path.join(image_dir, img_name)
-        image_path = image_dir+ img_name
         image_save_path = os.path.join(image_save_dir, img_name)
-        image_save_path = image_save_dir+ img_name
         img =cv2.imread(image_path)
         annotation = image ['annotations'][0]['result']
         points_dict = {}

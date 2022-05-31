@@ -1,7 +1,15 @@
 import json
 
 
-def read_json(json_file_path):
+def read_json(json_file_path: str) -> dict:
+    """takes a path to a json file and returns a contents
+
+    Args:
+        json_file_path (str): path to the json file
+
+    Returns:
+        dict: contents of the json file
+    """
     f = open(json_file_path, "r")
     # Reading from file
     data = json.loads(f.read())

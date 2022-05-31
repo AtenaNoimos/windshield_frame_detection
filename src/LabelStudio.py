@@ -1,20 +1,26 @@
+import copy
 import json
-import os
-import cv2
 import math
+import os
 from datetime import datetime
+
+import cv2
+from sklearn.model_selection import train_test_split
+
 from utils import read_json, write_json
 
 
-def plot_labelstudio_keypoints(json_file_path, read_img_dir, write_img_dir):
-    """ a function to read keypoints lables in Label studio jso format and visualized them on the images
+def plot_labelstudio_keypoints(
+    json_file_path: str, read_img_dir: str, write_img_dir: str
+) -> dict:
+    """ a function to read keypoints lables in Label studio json format and visualized them on the images
     Args:
-        json_file_path: path to the json file
-        read_img_dir: the directory where all images are there
-        write_img_dir: the directory where results will be saved
+        json_file_path (str): path to the json file
+        read_img_dir(str): the directory where all images are there
+        write_img_dir(str): the directory where results will be saved
         
     Returns:
-        image_keypoints_dict: a dictionary like {img_name: {'keypointlabel1': (x1,y1), 'keypointlabel2': (x2,y2), ...}}
+        image_keypoints_dict(dict): a dictionary like {img_name: {'keypointlabel1': (x1,y1), 'keypointlabel2': (x2,y2), ...}}
     """
 
     f = open(json_file_path, "r")
@@ -77,20 +83,18 @@ def plot_labelstudio_keypoints(json_file_path, read_img_dir, write_img_dir):
 
 
 def labelstudio_to_coco_convertor_keypoints(
-    LabelStudio_json_file_path, Coco_json_file_name
+    LabelStudio_json_file_path: str, Coco_json_file_name: str
 ):
     """ a function which converts a label studio json file to a coco json file and save the results in a json in the current directory file
         Args:
-            LabelStudio_json_file_path: path to the label studio json file
-            Coco_json_file_name : the name of coco_json file
+            LabelStudio_json_file_path(str): path to the label studio json file
+            Coco_json_file_name(str) : the name of coco_json file
             
         Returns:
-            coco_dict: data in coco format """
+            coco_dict(dict): data in coco format """
 
     data = read_json(LabelStudio_json_file_path)
-    # f = open (json_file_name, "r")
-    # Reading from file
-    # data = json.loads(f.read())
+
     coco_dict = {}
     coco_dict["info"] = dict(
         description=None,
@@ -100,18 +104,20 @@ def labelstudio_to_coco_convertor_keypoints(
         contributor=None,
         data_created=datetime.now().strftime("%m/%d/%Y, %H:%M"),
     )
-    coco_dict["licences"] = dict(ulr=None, id=0, name=None)
+    coco_dict["licences"] = [dict(ulr=None, id=0, name=None)]
     coco_dict["images"] = []
     coco_dict["annotations"] = []
-    coco_dict["categories"] = dict(
-        supercategory="windshield",
-        id=1,
-        name="windshield",
-        keypoints=["lower_left", "top_left", "top_right", "lower_right"],
-        skeleton=[[1, 2], [2, 3], [3, 4], [4, 1]],
-    )
-    image_dir = "../data/first_100samples/100_Samples"
+    coco_dict["categories"] = [
+        dict(
+            supercategory="windshield",
+            id=1,
+            name="windshield",
+            keypoints=["lower_left", "top_left", "top_right", "lower_right"],
+            skeleton=[[1, 2], [2, 3], [3, 4], [4, 1]],
+        )
+    ]
     img_id = 0
+    ann_id = 0
     for idx, image in enumerate(data):
         img_name = image["data"]["img"].split("/")[-1].split("-", maxsplit=1)[-1]
         annotation = image["annotations"][0]["result"]
@@ -148,6 +154,7 @@ def labelstudio_to_coco_convertor_keypoints(
             num_keypoints=cnt + 1,
             image_id=img_id,
             category_id=0,
+            id=ann_id,
         )
         coco_dict["annotations"].append(annotation_dict)
         img_dict = dict(
@@ -160,6 +167,61 @@ def labelstudio_to_coco_convertor_keypoints(
         )
         coco_dict["images"].append(img_dict)
         img_id += 1
+        ann_id += 1
         write_json(coco_dict, Coco_json_file_name)
 
     return coco_dict
+
+
+def coco_train_test_split(
+    coco_json_file_path: str,
+    val_test_size: float,
+    shuffle: bool,
+    random_state: int,
+    save_dir: str,
+):
+    """split a coco format json file into train, test, val json files
+
+    Args:
+        coco_json_file_path (str): path to the coco_json file
+        val_test_size (float): should be between 0.0 and 1.0 and represent the proportion 
+                                of the dataset to include in the validation split and test
+                                 split (val ratio = test ratio)
+        shuffle (bool): wether or not to shuffle data before splitting 
+        random_state (int): Controls the shuffling applied to the data before applying the split
+        save_dir (str): path to a directory json files will be saved
+    """
+    data = read_json(coco_json_file_path)
+    json_train = copy.deepcopy(data)
+    json_train["images"] = []
+    json_train["annotations"] = []
+    json_val = copy.deepcopy(data)
+    json_val["images"] = []
+    json_val["annotations"] = []
+    json_test = copy.deepcopy(data)
+    json_test["images"] = []
+    json_test["annotations"] = []
+
+    json_train["images"], json_images_tmp = train_test_split(
+        data["images"],
+        shuffle=shuffle,
+        test_size=(2 * val_test_size),
+        random_state=random_state,
+    )
+    json_val["images"], json_test["images"] = train_test_split(
+        data["images"], shuffle=shuffle, test_size=0.5, random_state=random_state
+    )
+
+    json_train["annotations"], json_annotations_tmp = train_test_split(
+        data["annotations"],
+        shuffle=shuffle,
+        test_size=(2 * val_test_size),
+        random_state=random_state,
+    )
+    json_val["annotations"], json_test["annotations"] = train_test_split(
+        data["annotations"], shuffle=shuffle, test_size=0.5, random_state=random_state
+    )
+
+    write_json(json_train, os.path.join(save_dir, "train"))
+    write_json(json_val, os.path.join(save_dir, "validation"))
+    write_json(json_test, os.path.join(save_dir, "test"))

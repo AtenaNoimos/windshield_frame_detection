@@ -104,17 +104,20 @@ def labelstudio_to_coco_convertor_keypoints(
         contributor=None,
         data_created=datetime.now().strftime("%m/%d/%Y, %H:%M"),
     )
-    coco_dict["licences"] = dict(ulr=None, id=0, name=None)
+    coco_dict["licences"] = [dict(ulr=None, id=0, name=None)]
     coco_dict["images"] = []
     coco_dict["annotations"] = []
-    coco_dict["categories"] = list(
-        supercategory="windshield",
-        id=1,
-        name="windshield",
-        keypoints=["lower_left", "top_left", "top_right", "lower_right"],
-        skeleton=[[1, 2], [2, 3], [3, 4], [4, 1]],
-    )
+    coco_dict["categories"] = [
+        dict(
+            supercategory="windshield",
+            id=1,
+            name="windshield",
+            keypoints=["lower_left", "top_left", "top_right", "lower_right"],
+            skeleton=[[1, 2], [2, 3], [3, 4], [4, 1]],
+        )
+    ]
     img_id = 0
+    ann_id = 0
     for idx, image in enumerate(data):
         img_name = image["data"]["img"].split("/")[-1].split("-", maxsplit=1)[-1]
         annotation = image["annotations"][0]["result"]
@@ -151,6 +154,7 @@ def labelstudio_to_coco_convertor_keypoints(
             num_keypoints=cnt + 1,
             image_id=img_id,
             category_id=0,
+            id=ann_id,
         )
         coco_dict["annotations"].append(annotation_dict)
         img_dict = dict(
@@ -163,6 +167,7 @@ def labelstudio_to_coco_convertor_keypoints(
         )
         coco_dict["images"].append(img_dict)
         img_id += 1
+        ann_id += 1
         write_json(coco_dict, Coco_json_file_name)
 
     return coco_dict

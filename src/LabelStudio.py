@@ -7,7 +7,7 @@ from datetime import datetime
 import cv2
 from sklearn.model_selection import train_test_split
 
-from utils import read_json, write_json
+from utils import *
 
 
 def plot_labelstudio_keypoints(
@@ -148,13 +148,18 @@ def labelstudio_to_coco_convertor_keypoints(
                 keypoint_list[9] = x
                 keypoint_list[10] = y
                 keypoint_list[11] = 2
+        num_keypoints = cnt + 1
 
+        bbox = bounding_box(keypoint_list)
         annotation_dict = dict(
             keypoints=keypoint_list,
-            num_keypoints=cnt + 1,
+            num_keypoints=num_keypoints,
             image_id=img_id,
-            category_id=0,
             id=ann_id,
+            bbox=bbox,  # based on mmpose the minimal box that tightly bounds all the keypoints.
+            area=bbox[2] * bbox[3],  # w*h
+            iscrowd=0,  # recommended in mmpose ducumentation
+            category_id=1,  # recommended in mmpose ducumentation
         )
         coco_dict["annotations"].append(annotation_dict)
         img_dict = dict(

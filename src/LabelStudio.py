@@ -7,7 +7,7 @@ from datetime import datetime
 import cv2
 from sklearn.model_selection import train_test_split
 
-from utils import read_json, write_json
+from utils import *
 
 
 def plot_labelstudio_keypoints(
@@ -44,7 +44,7 @@ def plot_labelstudio_keypoints(
                 math.floor(x * original_width / 100),
                 math.floor((y) * original_height / 100),
             )
-            radius = 3
+            radius = 8
             if label == "lower_right":
                 img = cv2.circle(
                     img,
@@ -148,15 +148,19 @@ def labelstudio_to_coco_convertor_keypoints(
                 keypoint_list[9] = x
                 keypoint_list[10] = y
                 keypoint_list[11] = 2
+        num_keypoints = cnt + 1
 
+        bbox = bounding_box(keypoint_list, [original_width, original_height])
         annotation_dict = dict(
             keypoints=keypoint_list,
-            num_keypoints=cnt + 1,
+            num_keypoints=num_keypoints,
             image_id=img_id,
-            category_id=0,
             id=ann_id,
+            bbox=bbox,  # based on mmpose the minimal box that tightly bounds all the keypoints.
+            area=bbox[2] * bbox[3],  # w*h
+            iscrowd=0,  # recommended in mmpose ducumentation
+            category_id=1,  # recommended in mmpose ducumentation
         )
-        coco_dict["annotations"].append(annotation_dict)
         img_dict = dict(
             license=0,
             ulr=None,
@@ -165,7 +169,9 @@ def labelstudio_to_coco_convertor_keypoints(
             width=original_width,
             id=img_id,
         )
-        coco_dict["images"].append(img_dict)
+        if num_keypoints == 4:
+            coco_dict["annotations"].append(annotation_dict)
+            coco_dict["images"].append(img_dict)
         img_id += 1
         ann_id += 1
         write_json(coco_dict, Coco_json_file_name)
@@ -221,7 +227,48 @@ def coco_train_test_split(
     json_val["annotations"], json_test["annotations"] = train_test_split(
         data["annotations"], shuffle=shuffle, test_size=0.5, random_state=random_state
     )
+    file_name_prefix = coco_json_file_path.split(".")[0]
 
-    write_json(json_train, os.path.join(save_dir, "train"))
-    write_json(json_val, os.path.join(save_dir, "validation"))
-    write_json(json_test, os.path.join(save_dir, "test"))
+    write_json(json_train, os.path.join(save_dir, file_name_prefix + "_train"))
+    write_json(json_val, os.path.join(save_dir, file_name_prefix + "_validation"))
+    write_json(json_test, os.path.join(save_dir, file_name_prefix + "_test"))
+
+    return json_train, json_val, json_test
+
+
+def labelstudio_to_coco_convertor_keypoints_train_test_split(
+    LabelStudio_json_file_path: str,
+    Coco_json_file_name_prefix: str,
+    val_test_size: float,
+    shuffle: bool,
+    random_state: int,
+    save_dir: str,
+):
+    """Take label studio code and convert it to coco_format and split it to train, test, val splits
+
+    Args:
+        LabelStudio_json_file_path (str): path to labelstudio json file
+        Coco_json_file_name_prefix (str): the name of coco json file (it will be used as a prefix for train, test and val)
+        val_test_size (float): should be between 0.0 and 1.0 and represent the proportion 
+                                of the dataset to include in the validation split and test
+                                 split (val ratio = test ratio)
+        shuffle (bool): wether or not to shuffle data before splitting 
+        random_state (int): Controls the shuffling applied to the data before applying the split
+        save_dir (str): path to a directory json files will be saved
+
+    Returns:
+        _type_: full coco data file, train, test and val splits
+    """
+    converted_file = labelstudio_to_coco_convertor_keypoints(
+        LabelStudio_json_file_path, Coco_json_file_name_prefix
+    )
+    train, val, test = coco_train_test_split(
+        Coco_json_file_name_prefix + ".json",
+        val_test_size,
+        shuffle,
+        random_state,
+        save_dir,
+    )
+
+    return converted_file, train, val, test
+

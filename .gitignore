@@ -1,0 +1,7 @@
+*.py.bak
+commands.txt
+*.json
+*.cpython-39.pyc  git add 
+**/.ipynb_checkpoints/
+**/__pycache__/
+data/

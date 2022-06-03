@@ -16,6 +16,19 @@ def read_json(json_file_path: str) -> dict:
     return data
 
 
+def merge_labelstudio_json_files(merged_file_name: str, *args: str):
+    """merge mutiple json files
+
+    Args:
+        merged_file_name (str): the name of merged file (without .json)
+    """
+    merged_data = []
+    for json in args:
+        merged_data = merged_data + read_json(json)
+    write_json(merged_data, merged_file_name)
+    return merged_data
+
+
 def write_json(data, json_file_name):
     """ writes the input data in a json file and save it in the current directory
     Args:
@@ -56,34 +69,4 @@ def bounding_box(keypoints_list, image_size):
         min(image_size[0], w + 100),
         min(image_size[0], h + 100),
     ]
-
-    # if (
-    #     keypoints_list[2]
-    #     == 2 & keypoints_list[5]
-    #     == 2 & keypoints_list[8]
-    #     == 2 & keypoints_list[11]
-    #     == 2
-    # ):
-    #     x = keypoints_list[3]
-    #     y = keypoints_list[4]
-    #     w = max(
-    #         (keypoints_list[6] - keypoints_list[3]),
-    #         (keypoints_list[9] - keypoints_list[0]),
-    #     )
-    #     h = max(
-    #         (keypoints_list[4] - keypoints_list[1]),
-    #         (keypoints_list[7] - keypoints_list[10]),
-    #     )
-
-    #     area = w * h
-
-    # else:
-    #     x = 0
-    #     y = 0
-    #     w = 0
-    #     h = 0
-
-    #     area = w * h
-
-    #     return w, h, area
 
